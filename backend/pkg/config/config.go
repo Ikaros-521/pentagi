@@ -274,6 +274,10 @@ type Config struct {
 
 	// === Network Proxy Settings ===
 	ProxyURL string `env:"PROXY_URL"`
+	// ProxyNoProxy exempts hosts from ProxyURL using NO_PROXY syntax
+	// (comma-separated names, IP ranges and CIDRs). Required for self-hosted
+	// endpoints and any target the proxy exit cannot reach.
+	ProxyNoProxy string `env:"PROXY_NO_PROXY"`
 
 	// === PentAGI Cloud API ===
 	// UpdateStrategy is the strategy to use for updates. It can be "preview", "stable" or "nightly".

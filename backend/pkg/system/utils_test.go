@@ -774,3 +774,64 @@ func TestHTTPClient_RealConnection_InsecureMode(t *testing.T) {
 		t.Errorf("expected status 200, got %d", resp.StatusCode)
 	}
 }
+
+func TestGetHTTPClient_ProxyNoProxyExemptsHosts(t *testing.T) {
+	certs, err := generateTestCerts()
+	if err != nil {
+		t.Fatalf("failed to generate test certs: %v", err)
+	}
+
+	tmpFile := createTempFile(t, certs.rootCAPEM)
+	cfg := createTestConfig(tmpFile, false, "http://proxy.example.com:8080")
+	cfg.ProxyNoProxy = "scraper,pgvector,10.0.0.0/8,124.223.187.198,localhost"
+
+	client, err := GetHTTPClient(cfg)
+	if err != nil {
+		t.Fatalf("expected no error, got: %v", err)
+	}
+
+	transport, ok := client.Transport.(*http.Transport)
+	if !ok || transport.Proxy == nil {
+		t.Fatal("expected http.Transport with a proxy function")
+	}
+
+	tests := []struct {
+		name     string
+		url      string
+		exempted bool
+	}{
+		{"external host goes through the proxy", "https://example.com/path", false},
+		{"listed internal name bypasses", "https://scraper/markdown", true},
+		{"another listed internal name bypasses", "http://pgvector:5432", true},
+		{"an exempt CIDR bypasses", "http://10.1.2.3:8080/target", true},
+		{"an exempt single IP bypasses", "http://124.223.187.198:13000/v1", true},
+		{"localhost bypasses", "http://localhost:8080", true},
+		{"a non-listed host stays proxied", "https://api.gkem.ml/v1", false},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			req, err := http.NewRequest(http.MethodGet, tc.url, nil)
+			if err != nil {
+				t.Fatalf("failed to build request: %v", err)
+			}
+
+			proxyURL, err := transport.Proxy(req)
+			if err != nil {
+				t.Fatalf("proxy function failed: %v", err)
+			}
+
+			if tc.exempted && proxyURL != nil {
+				t.Fatalf("expected %s to bypass the proxy, got %s", tc.url, proxyURL)
+			}
+			if !tc.exempted {
+				if proxyURL == nil {
+					t.Fatalf("expected %s to use the proxy", tc.url)
+				}
+				if got := proxyURL.String(); got != "http://proxy.example.com:8080" {
+					t.Fatalf("unexpected proxy url: %s", got)
+				}
+			}
+		})
+	}
+}

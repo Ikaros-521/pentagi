@@ -10,6 +10,8 @@ import (
 	"time"
 
 	"pentagi/pkg/config"
+
+	"golang.org/x/net/http/httpproxy"
 )
 
 const (
@@ -67,11 +69,20 @@ func GetHTTPClient(cfg *config.Config) (*http.Client, error) {
 	timeout := max(time.Duration(cfg.HTTPClientTimeout)*time.Second, 0)
 
 	if cfg.ProxyURL != "" {
+		// The NO_PROXY-style exemption list decides per request: self-hosted
+		// endpoints (scraper, pgvector, an on-prem LLM gateway) and any host the
+		// proxy exit cannot reach must bypass the proxy, not fail through it.
+		proxyFunc := (&httpproxy.Config{
+			HTTPProxy:  cfg.ProxyURL,
+			HTTPSProxy: cfg.ProxyURL,
+			NoProxy:    cfg.ProxyNoProxy,
+		}).ProxyFunc()
+
 		httpClient = &http.Client{
 			Timeout: timeout,
 			Transport: &http.Transport{
 				Proxy: func(req *http.Request) (*url.URL, error) {
-					return url.Parse(cfg.ProxyURL)
+					return proxyFunc(req.URL)
 				},
 				TLSClientConfig: &tls.Config{
 					RootCAs:            rootCAPool,

@@ -19,10 +19,40 @@ func WorkerSpec(cfg *config.Config, image string) (*container.Config, *container
 	return &container.Config{
 			Image:      image,
 			Entrypoint: []string{"tail", "-f", "/dev/null"},
+			Env:        workerProxyEnv(cfg),
 		}, &container.HostConfig{
 			CapDrop: []string{"ALL"},
 			CapAdd:  workerCapabilities(cfg),
 		}
+}
+
+// defaultWorkerNoProxy keeps loopback and private ranges out of the proxy: a
+// pentest target on the lab network must be reached directly, and the proxy
+// exit usually cannot route into it anyway.
+const defaultWorkerNoProxy = "localhost,127.0.0.1,::1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16"
+
+// workerProxyEnv points the sandbox's HTTP-aware tooling (curl, wget, pip,
+// package managers, scripting runtimes) at the same proxy the backend uses.
+// Raw-socket tools (nmap scans, custom TCP) ignore these variables and stay
+// direct — full sandbox isolation needs a network-level gateway instead.
+func workerProxyEnv(cfg *config.Config) []string {
+	if cfg == nil || cfg.ProxyURL == "" {
+		return nil
+	}
+
+	noProxy := cfg.ProxyNoProxy
+	if noProxy == "" {
+		noProxy = defaultWorkerNoProxy
+	}
+
+	return []string{
+		"HTTP_PROXY=" + cfg.ProxyURL,
+		"HTTPS_PROXY=" + cfg.ProxyURL,
+		"http_proxy=" + cfg.ProxyURL,
+		"https_proxy=" + cfg.ProxyURL,
+		"NO_PROXY=" + noProxy,
+		"no_proxy=" + noProxy,
+	}
 }
 
 // workerCapabilities is the explicit allow-list that goes with CapDrop: ALL --

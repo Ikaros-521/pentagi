@@ -137,6 +137,7 @@ services:
       - MAX_LIMITED_AGENT_TOOL_CALLS=${MAX_LIMITED_AGENT_TOOL_CALLS:-}
       - AGENT_PLANNING_STEP_ENABLED=${AGENT_PLANNING_STEP_ENABLED:-}
       - PROXY_URL=${PROXY_URL:-}
+      - PROXY_NO_PROXY=${PROXY_NO_PROXY:-}
       - EXTERNAL_SSL_CA_PATH=${EXTERNAL_SSL_CA_PATH:-}
       - EXTERNAL_SSL_INSECURE=${EXTERNAL_SSL_INSECURE:-}
       - HTTP_CLIENT_TIMEOUT=${HTTP_CLIENT_TIMEOUT:-}
@@ -301,6 +302,9 @@ services:
       - MAX_CONCURRENT_SESSIONS=${LOCAL_SCRAPER_MAX_CONCURRENT_SESSIONS:-10}
       - USERNAME=${LOCAL_SCRAPER_USERNAME:-someuser}
       - PASSWORD=${LOCAL_SCRAPER_PASSWORD:-somepass}
+      # Optional Chrome launch args (JSON array); with a PROXY_URL set this
+      # should carry --proxy-server so page fetches leave through the proxy.
+      - 'DEFAULT_LAUNCH_ARGS=${SCRAPER_DEFAULT_LAUNCH_ARGS:-}'
     logging:
       options:
         max-size: 50m
