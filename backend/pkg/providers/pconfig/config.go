@@ -303,7 +303,20 @@ type AgentConfig struct {
 
 // ProviderConfig represents the configuration for all agents
 type ProviderConfig struct {
-	Name           string            `json:"name,omitempty" yaml:"name,omitempty"`
+	Name string `json:"name,omitempty" yaml:"name,omitempty"`
+	// Model is the channel-wide default model used whenever an agent block does
+	// not set one. For the custom provider it also serves as the client's base
+	// model, so a named channel is fully self-contained without env vars.
+	Model string `json:"model,omitempty" yaml:"model,omitempty"`
+	// URL, Key, APIType and APIVersion carry the channel's own credentials. They
+	// are only consumed by the custom (OpenAI-compatible) provider and let
+	// channels be defined purely in the config file (or seeded from it into the
+	// database) instead of relying on LLM_SERVER_* environment variables. When
+	// empty, the environment variables are used as before.
+	URL            string            `json:"url,omitempty" yaml:"url,omitempty"`
+	Key            string            `json:"key,omitempty" yaml:"key,omitempty"`
+	APIType        string            `json:"api_type,omitempty" yaml:"api_type,omitempty"`
+	APIVersion     string            `json:"api_version,omitempty" yaml:"api_version,omitempty"`
 	Simple         *AgentConfig      `json:"simple,omitempty" yaml:"simple,omitempty"`
 	SimpleJSON     *AgentConfig      `json:"simple_json,omitempty" yaml:"simple_json,omitempty"`
 	PrimaryAgent   *AgentConfig      `json:"primary_agent,omitempty" yaml:"primary_agent,omitempty"`
@@ -603,6 +616,58 @@ func LoadModelsConfigData(configData []byte) (ModelsConfig, error) {
 	}
 
 	return modelsConfig, nil
+}
+
+// namedProvidersFile is the optional "providers:" list of a custom provider
+// config file. Every entry defines a self-contained channel: its own name,
+// credentials (url, key, optional api_type/api_version), a channel-wide default
+// model and optional per-agent overrides, on top of the file's bare keys which
+// keep configuring the default channel as before.
+type namedProvidersFile struct {
+	Providers []*ProviderConfig `json:"providers" yaml:"providers"`
+}
+
+// LoadNamedProviders extracts the optional named channels ("providers:" list)
+// from a custom provider config file. A file without the list yields no
+// entries and no error, so existing single-channel configs keep working
+// unchanged. Each entry must carry name, url and key; per-agent blocks are
+// optional. defaultOptions is layered under every entry's own options the same
+// way LoadConfigData does for the default channel.
+func LoadNamedProviders(
+	configData []byte,
+	defaultOptions []llms.CallOption,
+) ([]*ProviderConfig, error) {
+	var file namedProvidersFile
+
+	if err := yaml.Unmarshal(configData, &file); err != nil {
+		if err := json.Unmarshal(configData, &file); err != nil {
+			return nil, fmt.Errorf("failed to parse named providers: %w", err)
+		}
+	}
+
+	seen := make(map[string]struct{}, len(file.Providers))
+	for i, entry := range file.Providers {
+		if entry == nil {
+			return nil, fmt.Errorf("named provider #%d is empty", i+1)
+		}
+		if strings.TrimSpace(entry.Name) == "" {
+			return nil, fmt.Errorf("named provider #%d is missing name", i+1)
+		}
+		if _, dup := seen[entry.Name]; dup {
+			return nil, fmt.Errorf("named provider %q is defined more than once", entry.Name)
+		}
+		seen[entry.Name] = struct{}{}
+		if strings.TrimSpace(entry.URL) == "" {
+			return nil, fmt.Errorf("named provider %q is missing url", entry.Name)
+		}
+		if strings.TrimSpace(entry.Key) == "" {
+			return nil, fmt.Errorf("named provider %q is missing key", entry.Name)
+		}
+		entry.Name = strings.TrimSpace(entry.Name)
+		entry.SetDefaultOptions(defaultOptions)
+	}
+
+	return file.Providers, nil
 }
 
 // UnmarshalJSON implements custom JSON unmarshaling for ModelConfig
@@ -1077,6 +1142,16 @@ func (pc *ProviderConfig) GetDefaultOptions() []llms.CallOption {
 		return nil
 	}
 	return pc.defaultOptions
+}
+
+// AppendDefaultOptions adds options beneath every agent call. They layer the
+// same way SetDefaultOptions does but extend an already-populated set instead
+// of replacing it.
+func (pc *ProviderConfig) AppendDefaultOptions(defaultOptions ...llms.CallOption) {
+	if pc == nil {
+		return
+	}
+	pc.defaultOptions = append(pc.defaultOptions, defaultOptions...)
 }
 
 func (pc *ProviderConfig) SetRawConfig(rawConfig []byte) {

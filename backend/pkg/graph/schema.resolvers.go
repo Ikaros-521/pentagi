@@ -2263,10 +2263,24 @@ func (r *queryResolver) SettingsProviders(ctx context.Context) (*model.Providers
 		}
 	}
 
-	providers, err := r.DB.GetUserProviders(ctx, uid)
+	// The custom type is usable without environment credentials too: named
+	// channels carry their own url/key in the stored config (seeded from the
+	// custom provider config file or created with credentials in place).
+	if providers.CustomFileChannelsConfigured(r.Config) {
+		config.Enabled.Custom = true
+	}
+
+	userProviders, err := r.DB.GetUserProviders(ctx, uid)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get user providers: %w", err)
 	}
+	for _, prv := range userProviders {
+		if provider.ProviderType(prv.Type) == provider.ProviderCustom {
+			config.Enabled.Custom = true
+		}
+	}
+
+	providers := userProviders
 
 	for _, prv := range providers {
 		var cfg pconfig.ProviderConfig

@@ -11,8 +11,18 @@ ENV VITE_BUILD_MEMORY_LIMIT=4096
 ENV NODE_OPTIONS="--max-old-space-size=4096"
 ENV PNPM_HOME="/usr/local/share/pnpm"
 ENV PATH="$PNPM_HOME/bin:$PNPM_HOME:$PATH"
+# npm mirror for environments where registry.npmjs.org is slow or unreachable;
+# integrity hashes in the lockfile keep the resolved tarballs identical.
+ENV COREPACK_NPM_REGISTRY=https://registry.npmmirror.com
+ENV npm_config_registry=https://registry.npmmirror.com
+# esbuild is native and sizes its thread pool after the CPU count; on many-core
+# hosts inside a memory-capped VM that segfaults during chunk rendering.
+ENV GOMAXPROCS=4
 
 WORKDIR /app/ui
+
+# Debian mirror for environments where deb.debian.org is unreliable
+RUN sed -i 's|deb.debian.org|mirrors.aliyun.com|g' /etc/apt/sources.list /etc/apt/sources.list.d/*.sources 2>/dev/null || true
 
 # Install build essentials and enable pnpm via corepack
 RUN apt-get update && apt-get install -y \
@@ -66,6 +76,13 @@ ARG PACKAGE_EDITION=ce
 # Static binary compilation settings
 ENV CGO_ENABLED=0
 ENV GO111MODULE=on
+# Module proxy fallback chain: goproxy.cn where proxy.golang.org is
+# unreachable; direct keeps every module resolvable either way.
+ENV GOPROXY=https://goproxy.cn,https://proxy.golang.org,direct
+ENV GOSUMDB=sum.golang.google.cn
+
+# Debian mirror for environments where deb.debian.org is unreliable
+RUN sed -i 's|deb.debian.org|mirrors.aliyun.com|g' /etc/apt/sources.list /etc/apt/sources.list.d/*.sources 2>/dev/null || true
 
 # Install compilation toolchain and dependencies
 RUN apt-get update && apt-get install -y \

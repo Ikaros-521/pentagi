@@ -293,6 +293,13 @@ func NewProviderController(
 		}
 	}
 
+	// Named custom channels from the config file are applied on every startup
+	// and watched for changes, so adding a channel is a config-file edit only.
+	if err := pc.seedCustomFileProviders(ctx); err != nil {
+		logrus.WithError(err).Warn("failed to seed custom channels from config file")
+	}
+	go pc.watchCustomFileProviders(ctx)
+
 	return pc, nil
 }
 
@@ -734,7 +741,7 @@ func (pc *providerController) NewProvider(prv database.Provider) (provider.Provi
 	// Check if the provider type is available via check default one
 	providerName := provider.ProviderName(prv.Name)
 	providerType := provider.ProviderType(prv.Type)
-	if !pc.ListTypes().Contains(providerType) {
+	if !pc.typeAvailable(providerType) {
 		return nil, fmt.Errorf("provider type '%s' is not available", prv.Type)
 	}
 
@@ -749,6 +756,15 @@ func (pc *providerController) NewProvider(prv database.Provider) (provider.Provi
 	}
 
 	return e.New(pc.cfg, providerName, config)
+}
+
+// typeAvailable reports whether user-defined providers of this type can be
+// instantiated. Types stay bound to their environment-configured built-in as
+// before; the custom type is additionally always available because its
+// channels carry their own credentials inside the stored config (url/key/
+// api_type/model) instead of relying on LLM_SERVER_* environment variables.
+func (pc *providerController) typeAvailable(prvtype provider.ProviderType) bool {
+	return pc.ListTypes().Contains(prvtype) || prvtype == provider.ProviderCustom
 }
 
 func (pc *providerController) SeedDefaultProviders(ctx context.Context, userID int64) error {
@@ -833,7 +849,7 @@ func (pc *providerController) CreateProvider(
 		return result, err
 	}
 
-	if !pc.ListTypes().Contains(prvtype) {
+	if !pc.typeAvailable(prvtype) {
 		return result, fmt.Errorf("provider type '%s' is not available", prvtype)
 	}
 
@@ -906,6 +922,30 @@ func (pc *providerController) UpdateProvider(
 		return result, fmt.Errorf("failed to get provider: %w", err)
 	}
 	prvtype := provider.ProviderType(prv.Type)
+
+	// The update form only submits agent blocks, so per-channel fields (url,
+	// key, api_type, api_version, model) must be carried over from the stored
+	// config — otherwise a custom channel would lose its credentials on save.
+	if config != nil && len(prv.Config) > 0 {
+		var stored pconfig.ProviderConfig
+		if err := json.Unmarshal(prv.Config, &stored); err == nil {
+			if config.URL == "" {
+				config.URL = stored.URL
+			}
+			if config.Key == "" {
+				config.Key = stored.Key
+			}
+			if config.APIType == "" {
+				config.APIType = stored.APIType
+			}
+			if config.APIVersion == "" {
+				config.APIVersion = stored.APIVersion
+			}
+			if config.Model == "" {
+				config.Model = stored.Model
+			}
+		}
+	}
 
 	if config, err = pc.patchProviderConfig(prvtype, config); err != nil {
 		return result, fmt.Errorf("failed to patch provider config: %w", err)

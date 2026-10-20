@@ -141,6 +141,9 @@ type Config struct {
 	LLMServerPreserveReasoning bool   `env:"LLM_SERVER_PRESERVE_REASONING" envDefault:"false"`
 	LLMServerAPIType           string `env:"LLM_SERVER_API_TYPE"`
 	LLMServerAPIVersion        string `env:"LLM_SERVER_API_VERSION" envDefault:"2024-10-21"`
+	// LLMServerConfigReload is the watch interval (seconds) for named channels
+	// in the custom provider config file; 0 disables the watcher.
+	LLMServerConfigReload int `env:"LLM_SERVER_CONFIG_RELOAD" envDefault:"60"`
 
 	// === LLM Provider: Ollama (Local/Remote) ===
 	OllamaServerURL               string `env:"OLLAMA_SERVER_URL"`

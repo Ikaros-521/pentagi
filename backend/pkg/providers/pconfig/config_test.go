@@ -1291,3 +1291,110 @@ func TestConfig_ValidateThinkingAgreement_RefusesAnExtraBodyToggleThatContradict
 		})
 	}
 }
+
+func TestConfig_LoadNamedProviders_ReadsNamedChannelsAndLeavesTheBareConfigAlone(t *testing.T) {
+	t.Parallel()
+
+	configData := `
+simple:
+  model: bare-model
+providers:
+  - name: one
+    url: https://one.example.net/v1
+    key: k1
+    model: m1
+  - name: two
+    url: https://two.example.net/v1
+    key: k2
+    api_type: openai
+    simple:
+      model: m2-simple
+      temperature: 0.4
+`
+	entries, err := LoadNamedProviders([]byte(configData), []llms.CallOption{llms.WithTemperature(0.2)})
+	require.NoError(t, err)
+	require.Len(t, entries, 2)
+
+	assert.Equal(t, "one", entries[0].Name)
+	assert.Equal(t, "https://one.example.net/v1", entries[0].URL)
+	assert.Equal(t, "k1", entries[0].Key)
+	assert.Equal(t, "m1", entries[0].Model)
+
+	assert.Equal(t, "two", entries[1].Name)
+	assert.Equal(t, "openai", entries[1].APIType)
+
+	// every entry carries the shared default options for layering
+	for _, entry := range entries {
+		require.Len(t, entry.GetDefaultOptions(), 1, "entry %s", entry.Name)
+	}
+
+	// the channel-wide model lives in the Model field; the custom provider's
+	// client applies it to agents without their own block (see custom_test).
+	assert.Equal(t, "m1", entries[0].Model)
+
+	applied := llms.CallOptions{}
+	for _, option := range entries[1].GetOptionsForType(OptionsTypeSimple) {
+		option(&applied)
+	}
+	assert.Equal(t, "m2-simple", applied.GetModel())
+}
+
+func TestConfig_LoadNamedProviders_ToleratesAFileWithoutNamedChannels(t *testing.T) {
+	t.Parallel()
+
+	for name, configData := range map[string]string{
+		"the legacy bare config":       "simple:\n  model: m\n",
+		"an empty file":                "",
+		"a providers key with nothing": "providers: []\n",
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			entries, err := LoadNamedProviders([]byte(configData), nil)
+			require.NoError(t, err)
+			assert.Empty(t, entries)
+		})
+	}
+}
+
+func TestConfig_LoadNamedProviders_RejectsAnUnusableChannel(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name       string
+		configData string
+		want       string
+	}{
+		{
+			name:       "a channel without a name",
+			configData: "providers:\n  - url: https://x.example/v1\n    key: k\n",
+			want:       "missing name",
+		},
+		{
+			name:       "a channel without an url",
+			configData: "providers:\n  - name: one\n    key: k\n",
+			want:       "missing url",
+		},
+		{
+			name:       "a channel without a key",
+			configData: "providers:\n  - name: one\n    url: https://x.example/v1\n",
+			want:       "missing key",
+		},
+		{
+			name: "the same name twice",
+			configData: "providers:\n  - name: one\n    url: https://x.example/v1\n    key: k\n" +
+				"  - name: one\n    url: https://y.example/v1\n    key: k\n",
+			want: "more than once",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			_, err := LoadNamedProviders([]byte(tc.configData), nil)
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), tc.want)
+		})
+	}
+}

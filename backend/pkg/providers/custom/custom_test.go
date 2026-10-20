@@ -536,3 +536,58 @@ func TestCustom_EveryCallPathPutsTheAgentsAdaptiveEffortOnTheWire(t *testing.T) 
 		})
 	}
 }
+
+func TestCustom_BuildProviderConfig_KeepsTheChannelModelOverTheEnvironmentModel(t *testing.T) {
+	t.Parallel()
+
+	providerConfig, err := BuildProviderConfig(
+		&config.Config{LLMServerModel: "env-model"},
+		[]byte(`{"model": "cfg-model"}`),
+	)
+	require.NoError(t, err)
+
+	var applied llms.CallOptions
+	for _, option := range providerConfig.GetOptionsForType(pconfig.OptionsTypeSimple) {
+		option(&applied)
+	}
+	assert.Empty(t, applied.GetModel(),
+		"the env model must not leak into the shared defaults of a config naming its own channel model")
+
+	providerConfig, err = BuildProviderConfig(
+		&config.Config{LLMServerModel: "env-model"},
+		[]byte(`{}`),
+	)
+	require.NoError(t, err)
+
+	applied = llms.CallOptions{}
+	for _, option := range providerConfig.GetOptionsForType(pconfig.OptionsTypeSimple) {
+		option(&applied)
+	}
+	assert.Equal(t, "env-model", applied.GetModel(),
+		"without a channel model the env model stays the fallback")
+}
+
+func TestCustom_New_TakesTheCredentialsFromTheConfigOverTheEnvironment(t *testing.T) {
+	t.Parallel()
+
+	server := customEndpoint(t, `{"object":"list","data":[{"id":"cfg-model","object":"model"}]}`)
+	// the environment points at an unroutable gateway with another model: only a
+	// provider that actually uses the config's url/key/model can work here.
+	cfg := &config.Config{
+		LLMServerURL:   "http://127.0.0.1:1/v1",
+		LLMServerKey:   "env-key",
+		LLMServerModel: "env-model",
+	}
+
+	providerConfig, err := BuildProviderConfig(cfg, []byte(fmt.Sprintf(
+		`{"model": "cfg-model", "url": %q, "key": "k"}`, server.url,
+	)))
+	require.NoError(t, err)
+
+	prov, err := New(cfg, provider.ProviderName("cfg-channel"), providerConfig, nil)
+	require.NoError(t, err)
+
+	assert.Equal(t, "cfg-model", prov.Model(pconfig.OptionsTypeSimple))
+	assert.Equal(t, "cfg-channel", string(prov.Name()))
+	assert.Equal(t, 1, server.listings, "the models catalogue is listed from the config url")
+}

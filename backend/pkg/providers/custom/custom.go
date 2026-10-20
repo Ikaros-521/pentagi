@@ -18,24 +18,43 @@ import (
 	"github.com/vxcontrol/langchaingo/llms/streaming"
 )
 
-func BuildProviderConfig(cfg *config.Config, configData []byte) (*pconfig.ProviderConfig, error) {
-	defaultOptions := []llms.CallOption{
+// BaseDefaultOptions returns the fallback call options layered under every
+// custom provider agent config. It is shared by config parsing so named
+// channels are built with exactly the same baseline as the default channel.
+func BaseDefaultOptions() []llms.CallOption {
+	return []llms.CallOption{
 		llms.WithTemperature(1.0),
 		llms.WithTopP(1.0),
 		llms.WithN(1),
 		llms.WithMaxTokens(16384),
 	}
+}
 
-	if cfg.LLMServerModel != "" {
-		defaultOptions = append(defaultOptions, llms.WithModel(cfg.LLMServerModel))
-	}
-
-	providerConfig, err := pconfig.LoadConfigData(configData, defaultOptions)
+func BuildProviderConfig(cfg *config.Config, configData []byte) (*pconfig.ProviderConfig, error) {
+	providerConfig, err := pconfig.LoadConfigData(configData, BaseDefaultOptions())
 	if err != nil {
 		return nil, err
 	}
 
+	// A config that carries its own channel-wide model keeps it; the env model
+	// must not leak into other channels (named providers seeded from this file
+	// are re-parsed from the stored JSON here at runtime).
+	if providerConfig.Model == "" && cfg.LLMServerModel != "" {
+		providerConfig.AppendDefaultOptions(llms.WithModel(cfg.LLMServerModel))
+	}
+
 	return providerConfig, nil
+}
+
+// firstNonEmpty returns the first string that is not empty, so per-channel
+// config values win over their LLM_SERVER_* environment fallbacks.
+func firstNonEmpty(values ...string) string {
+	for _, v := range values {
+		if v != "" {
+			return v
+		}
+	}
+	return ""
 }
 
 func DefaultProviderConfig(cfg *config.Config) (*pconfig.ProviderConfig, error) {
@@ -65,25 +84,25 @@ type customAPI struct {
 	version string
 }
 
-func parseCustomAPI(cfg *config.Config) (customAPI, error) {
-	declared := strings.ToLower(strings.TrimSpace(cfg.LLMServerAPIType))
+func parseCustomAPI(apiType, apiVersion string) (customAPI, error) {
+	declared := strings.ToLower(strings.TrimSpace(apiType))
 	if declared == "" {
 		return customAPI{}, nil
 	}
 
-	apiType, known := map[string]openai.APIType{
+	known, ok := map[string]openai.APIType{
 		"openai":   openai.APITypeOpenAI,
 		"azure":    openai.APITypeAzure,
 		"azure_ad": openai.APITypeAzureAD,
 	}[declared]
-	if !known {
+	if !ok {
 		return customAPI{}, fmt.Errorf(
-			"unknown LLM_SERVER_API_TYPE %q for provider %q: expected openai, azure or azure_ad",
-			cfg.LLMServerAPIType, provider.ProviderCustom,
+			"unknown api_type %q for provider %q: expected openai, azure or azure_ad",
+			apiType, provider.ProviderCustom,
 		)
 	}
 
-	return customAPI{apiType: apiType, version: strings.TrimSpace(cfg.LLMServerAPIVersion)}, nil
+	return customAPI{apiType: known, version: strings.TrimSpace(apiVersion)}, nil
 }
 
 func (a customAPI) clientOptions() []openai.Option {
@@ -109,12 +128,20 @@ func New(
 	providerConfig *pconfig.ProviderConfig,
 	enrich func(pconfig.ModelsConfig) pconfig.ModelsConfig,
 ) (provider.Provider, error) {
-	baseKey := cfg.LLMServerKey
-	baseURL := cfg.LLMServerURL
-	baseModel := cfg.LLMServerModel
+	// Per-channel config values win; the LLM_SERVER_* environment variables are
+	// only the bootstrap fallback so existing deployments behave as before.
+	var cfgView pconfig.ProviderConfig
+	if providerConfig != nil {
+		cfgView = *providerConfig
+	}
+	baseKey := firstNonEmpty(cfgView.Key, cfg.LLMServerKey)
+	baseURL := firstNonEmpty(cfgView.URL, cfg.LLMServerURL)
+	baseModel := firstNonEmpty(cfgView.Model, cfg.LLMServerModel)
 	if baseKey == "" {
-		return nil, fmt.Errorf("missing API key for provider %q, set it in the LLM_SERVER_KEY environment variable",
-			provider.ProviderCustom)
+		return nil, fmt.Errorf(
+			"missing API key for provider %q: set the key field in its config or the LLM_SERVER_KEY environment variable",
+			provider.ProviderCustom,
+		)
 	}
 
 	httpClient, err := system.GetHTTPClient(cfg)
@@ -134,7 +161,10 @@ func New(
 		)
 	}
 
-	api, err := parseCustomAPI(cfg)
+	api, err := parseCustomAPI(
+		firstNonEmpty(cfgView.APIType, cfg.LLMServerAPIType),
+		firstNonEmpty(cfgView.APIVersion, cfg.LLMServerAPIVersion),
+	)
 	if err != nil {
 		return nil, err
 	}
