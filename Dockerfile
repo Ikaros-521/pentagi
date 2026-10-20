@@ -22,10 +22,10 @@ ENV GOMAXPROCS=4
 WORKDIR /app/ui
 
 # Debian mirror for environments where deb.debian.org is unreliable
-RUN sed -i 's|deb.debian.org|mirrors.aliyun.com|g' /etc/apt/sources.list /etc/apt/sources.list.d/*.sources 2>/dev/null || true
+RUN sed -i 's|deb.debian.org|mirror.nju.edu.cn|g' /etc/apt/sources.list /etc/apt/sources.list.d/*.sources 2>/dev/null || true
 
 # Install build essentials and enable pnpm via corepack
-RUN apt-get update && apt-get install -y \
+RUN apt-get -o Acquire::Retries=5 -o Acquire::https::Timeout=30 update && apt-get -o Acquire::Retries=5 -o Acquire::https::Timeout=30 install -y \
     ca-certificates \
     tzdata \
     gcc \
@@ -82,10 +82,10 @@ ENV GOPROXY=https://goproxy.cn,https://proxy.golang.org,direct
 ENV GOSUMDB=sum.golang.google.cn
 
 # Debian mirror for environments where deb.debian.org is unreliable
-RUN sed -i 's|deb.debian.org|mirrors.aliyun.com|g' /etc/apt/sources.list /etc/apt/sources.list.d/*.sources 2>/dev/null || true
+RUN sed -i 's|deb.debian.org|mirror.nju.edu.cn|g' /etc/apt/sources.list /etc/apt/sources.list.d/*.sources 2>/dev/null || true
 
 # Install compilation toolchain and dependencies
-RUN apt-get update && apt-get install -y \
+RUN apt-get -o Acquire::Retries=5 -o Acquire::https::Timeout=30 update && apt-get -o Acquire::Retries=5 -o Acquire::https::Timeout=30 install -y \
     ca-certificates \
     tzdata \
     gcc \
