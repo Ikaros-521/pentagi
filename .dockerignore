@@ -19,3 +19,4 @@ frontend/ssl
 backend/ctester
 backend/etester
 backend/ftester
+.pnpm-store

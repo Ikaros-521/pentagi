@@ -44,3 +44,4 @@ __pycache__/
 
 # OS
 Thumbs.db
+.pnpm-store/
