@@ -55,7 +55,7 @@ func TestProviders_GetProviders_SkipsAnUnusableUserRowAndKeepsTheRest(t *testing
 	require.NoError(t, err, "one unusable user provider must not fail the whole query")
 	assert.Contains(t, got, provider.ProviderName("ollama-default"), "enabled providers stay reachable")
 	assert.Contains(t, got, provider.ProviderName("ollama-user"), "a valid user provider survives an unusable sibling")
-	assert.NotContains(t, got, provider.ProviderName("stale-minimax"), "the provider of an unavailable type is skipped")
+	assert.NotContains(t, got, provider.ProviderName("stale-minimax"), "the provider with no credentials anywhere is skipped")
 	assert.NotContains(t, got, provider.ProviderName("unreadable-ollama"),
 		"the provider whose stored config no longer parses is skipped")
 }
@@ -341,8 +341,7 @@ func TestProviders_StoresAConfigOnlyWhenEveryGateAcceptsIt(t *testing.T) {
 	}{
 		{name: "an available type with no config of its own", ptype: provider.ProviderOllama, cfg: none},
 		{
-			name: "a type without credentials", ptype: provider.ProviderMiniMax, cfg: none, unavailable: true,
-			refused: "provider type 'minimax' is not available",
+			name: "a type whose credentials live in its stored config, set by no env var", ptype: provider.ProviderMiniMax, cfg: none,
 		},
 		{
 			name: "a type whose default config failed to load at startup", ptype: provider.ProviderBedrock,

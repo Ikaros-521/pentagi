@@ -759,12 +759,14 @@ func (pc *providerController) NewProvider(prv database.Provider) (provider.Provi
 }
 
 // typeAvailable reports whether user-defined providers of this type can be
-// instantiated. Types stay bound to their environment-configured built-in as
-// before; the custom type is additionally always available because its
-// channels carry their own credentials inside the stored config (url/key/
-// api_type/model) instead of relying on LLM_SERVER_* environment variables.
+// instantiated. Every registered type is: its channels carry their own
+// credentials inside the stored config (url/key/api_type/model), while the
+// environment variables remain the bootstrap for the built-in ones. A channel
+// saved without any credentials anywhere fails at call time with an error
+// naming what to set, not at creation.
 func (pc *providerController) typeAvailable(prvtype provider.ProviderType) bool {
-	return pc.ListTypes().Contains(prvtype) || prvtype == provider.ProviderCustom
+	_, ok := entryForType(prvtype)
+	return ok
 }
 
 func (pc *providerController) SeedDefaultProviders(ctx context.Context, userID int64) error {

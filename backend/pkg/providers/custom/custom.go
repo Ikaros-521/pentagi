@@ -46,17 +46,6 @@ func BuildProviderConfig(cfg *config.Config, configData []byte) (*pconfig.Provid
 	return providerConfig, nil
 }
 
-// firstNonEmpty returns the first string that is not empty, so per-channel
-// config values win over their LLM_SERVER_* environment fallbacks.
-func firstNonEmpty(values ...string) string {
-	for _, v := range values {
-		if v != "" {
-			return v
-		}
-	}
-	return ""
-}
-
 func DefaultProviderConfig(cfg *config.Config) (*pconfig.ProviderConfig, error) {
 	if cfg.LLMServerConfig == "" {
 		return BuildProviderConfig(cfg, []byte(pconfig.EmptyProviderConfigRaw))
@@ -134,9 +123,9 @@ func New(
 	if providerConfig != nil {
 		cfgView = *providerConfig
 	}
-	baseKey := firstNonEmpty(cfgView.Key, cfg.LLMServerKey)
-	baseURL := firstNonEmpty(cfgView.URL, cfg.LLMServerURL)
-	baseModel := firstNonEmpty(cfgView.Model, cfg.LLMServerModel)
+	baseKey := pconfig.FirstNonEmpty(cfgView.Key, cfg.LLMServerKey)
+	baseURL := pconfig.FirstNonEmpty(cfgView.URL, cfg.LLMServerURL)
+	baseModel := pconfig.FirstNonEmpty(cfgView.Model, cfg.LLMServerModel)
 	if baseKey == "" {
 		return nil, fmt.Errorf(
 			"missing API key for provider %q: set the key field in its config or the LLM_SERVER_KEY environment variable",
@@ -162,8 +151,8 @@ func New(
 	}
 
 	api, err := parseCustomAPI(
-		firstNonEmpty(cfgView.APIType, cfg.LLMServerAPIType),
-		firstNonEmpty(cfgView.APIVersion, cfg.LLMServerAPIVersion),
+		pconfig.FirstNonEmpty(cfgView.APIType, cfg.LLMServerAPIType),
+		pconfig.FirstNonEmpty(cfgView.APIVersion, cfg.LLMServerAPIVersion),
 	)
 	if err != nil {
 		return nil, err

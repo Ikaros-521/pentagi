@@ -71,8 +71,8 @@ func New(
 		Type:               provider.ProviderMiniMax,
 		Model:              MiniMaxAgentModel,
 		ToolCallIDTemplate: MiniMaxToolCallIDTemplate,
-		APIKey:             cfg.MiniMaxAPIKey,
-		ServerURL:          cfg.MiniMaxServerURL,
+		APIKey:             pconfig.FirstNonEmpty(providerConfig.Key, cfg.MiniMaxAPIKey),
+		ServerURL:          pconfig.FirstNonEmpty(providerConfig.URL, cfg.MiniMaxServerURL),
 		Prefix:             cfg.MiniMaxProvider,
 		PreserveReasoning:  true,
 		// MiniMax takes no response_format, so the schema goes in the prompt.

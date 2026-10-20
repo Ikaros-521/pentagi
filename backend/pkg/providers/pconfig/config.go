@@ -619,12 +619,23 @@ func LoadModelsConfigData(configData []byte) (ModelsConfig, error) {
 }
 
 // namedProvidersFile is the optional "providers:" list of a custom provider
-// config file. Every entry defines a self-contained channel: its own name,
-// credentials (url, key, optional api_type/api_version), a channel-wide default
-// model and optional per-agent overrides, on top of the file's bare keys which
-// keep configuring the default channel as before.
+// config file. Every entry defines a self-contained channel: its own type
+// (custom by default; the glm, deepseek, kimi, qwen, minimax, mistral, xai,
+// openai, anthropic, gemini and ollama doors are supported too), name,
+// credentials (url, key, optional api_type/api_version), a channel-wide
+// default model and optional per-agent overrides, on top of the file's bare
+// keys which keep configuring the default channel as before.
 type namedProvidersFile struct {
-	Providers []*ProviderConfig `json:"providers" yaml:"providers"`
+	Providers []*NamedProviderConfig `json:"providers" yaml:"providers"`
+}
+
+// NamedProviderConfig is one named channel from the optional "providers:" list
+// of a custom provider config file. Type selects which provider door the
+// channel uses ("custom" when unset); the embedded ProviderConfig carries the
+// channel's credentials and per-agent options.
+type NamedProviderConfig struct {
+	Type           string `json:"type,omitempty" yaml:"type,omitempty"`
+	ProviderConfig `json:",inline" yaml:",inline"`
 }
 
 // LoadNamedProviders extracts the optional named channels ("providers:" list)
@@ -636,7 +647,7 @@ type namedProvidersFile struct {
 func LoadNamedProviders(
 	configData []byte,
 	defaultOptions []llms.CallOption,
-) ([]*ProviderConfig, error) {
+) ([]*NamedProviderConfig, error) {
 	var file namedProvidersFile
 
 	if err := yaml.Unmarshal(configData, &file); err != nil {
@@ -664,10 +675,22 @@ func LoadNamedProviders(
 			return nil, fmt.Errorf("named provider %q is missing key", entry.Name)
 		}
 		entry.Name = strings.TrimSpace(entry.Name)
+		entry.Type = strings.TrimSpace(entry.Type)
 		entry.SetDefaultOptions(defaultOptions)
 	}
 
 	return file.Providers, nil
+}
+
+// FirstNonEmpty returns the first string that is not empty, so per-channel
+// config values can win over their environment-variable fallbacks.
+func FirstNonEmpty(values ...string) string {
+	for _, v := range values {
+		if v != "" {
+			return v
+		}
+	}
+	return ""
 }
 
 // UnmarshalJSON implements custom JSON unmarshaling for ModelConfig

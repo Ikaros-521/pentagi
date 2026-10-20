@@ -71,8 +71,8 @@ func New(
 		Type:               provider.ProviderQwen,
 		Model:              QwenAgentModel,
 		ToolCallIDTemplate: QwenToolCallIDTemplate,
-		APIKey:             cfg.QwenAPIKey,
-		ServerURL:          cfg.QwenServerURL,
+		APIKey:             pconfig.FirstNonEmpty(providerConfig.Key, cfg.QwenAPIKey),
+		ServerURL:          pconfig.FirstNonEmpty(providerConfig.URL, cfg.QwenServerURL),
 		Prefix:             cfg.QwenProvider,
 		PreserveReasoning:  true,
 	}, httpClient, models, providerName, providerConfig)

@@ -2263,12 +2263,22 @@ func (r *queryResolver) SettingsProviders(ctx context.Context) (*model.Providers
 		}
 	}
 
-	// The custom type is usable without environment credentials too: named
-	// channels carry their own url/key in the stored config (seeded from the
-	// custom provider config file or created with credentials in place).
-	if providers.CustomFileChannelsConfigured(r.Config) {
-		config.Enabled.Custom = true
-	}
+	// Every type except Bedrock is creatable without environment credentials:
+	// its channels carry their own url/key in the stored config (seeded from
+	// the custom provider config file or created in place). Bedrock stays
+	// bound to its AWS credential chain, which only the environment provides.
+	config.Enabled.Openai = true
+	config.Enabled.Anthropic = true
+	config.Enabled.Gemini = true
+	config.Enabled.Ollama = true
+	config.Enabled.Custom = true
+	config.Enabled.Deepseek = true
+	config.Enabled.Glm = true
+	config.Enabled.Kimi = true
+	config.Enabled.Qwen = true
+	config.Enabled.Minimax = true
+	config.Enabled.Mistral = true
+	config.Enabled.Xai = true
 
 	userProviders, err := r.DB.GetUserProviders(ctx, uid)
 	if err != nil {

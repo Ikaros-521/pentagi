@@ -71,8 +71,8 @@ func New(
 		Type:               provider.ProviderKimi,
 		Model:              KimiAgentModel,
 		ToolCallIDTemplate: KimiToolCallIDTemplate,
-		APIKey:             cfg.KimiAPIKey,
-		ServerURL:          cfg.KimiServerURL,
+		APIKey:             pconfig.FirstNonEmpty(providerConfig.Key, cfg.KimiAPIKey),
+		ServerURL:          pconfig.FirstNonEmpty(providerConfig.URL, cfg.KimiServerURL),
 		Prefix:             cfg.KimiProvider,
 		PreserveReasoning:  true,
 	}, httpClient, models, providerName, providerConfig)

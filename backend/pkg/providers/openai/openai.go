@@ -67,7 +67,7 @@ func New(
 	providerName provider.ProviderName,
 	providerConfig *pconfig.ProviderConfig,
 ) (provider.Provider, error) {
-	baseURL := cfg.OpenAIServerURL
+	baseURL := pconfig.FirstNonEmpty(providerConfig.URL, cfg.OpenAIServerURL)
 	httpClient, err := system.GetHTTPClient(cfg)
 	if err != nil {
 		return nil, err
@@ -79,7 +79,7 @@ func New(
 	}
 
 	client, err := openai.New(
-		openai.WithToken(cfg.OpenAIKey),
+		openai.WithToken(pconfig.FirstNonEmpty(providerConfig.Key, cfg.OpenAIKey)),
 		openai.WithModel(OpenAIAgentModel),
 		openai.WithBaseURL(baseURL),
 		openai.WithHTTPClient(httpClient),

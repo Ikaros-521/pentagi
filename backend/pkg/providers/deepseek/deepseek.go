@@ -71,8 +71,8 @@ func New(
 		Type:               provider.ProviderDeepSeek,
 		Model:              DeepSeekAgentModel,
 		ToolCallIDTemplate: DeepSeekToolCallIDTemplate,
-		APIKey:             cfg.DeepSeekAPIKey,
-		ServerURL:          cfg.DeepSeekServerURL,
+		APIKey:             pconfig.FirstNonEmpty(providerConfig.Key, cfg.DeepSeekAPIKey),
+		ServerURL:          pconfig.FirstNonEmpty(providerConfig.URL, cfg.DeepSeekServerURL),
 		Prefix:             cfg.DeepSeekProvider,
 		PreserveReasoning:  true,
 		// DeepSeek takes json_object but refuses json_schema.

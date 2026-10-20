@@ -138,9 +138,10 @@ func federation(cfg *config.Config) (federationIdentity, identityToken, []string
 
 // Only a non-empty key shadows federation, here and in Configured and
 // CredentialsNotice: docker-compose exports ANTHROPIC_API_KEY even when unset.
-func credentials(cfg *config.Config, client *http.Client) ([]anthropic.Option, error) {
-	if cfg.AnthropicAPIKey != "" {
-		return []anthropic.Option{anthropic.WithToken(cfg.AnthropicAPIKey), anthropic.WithHTTPClient(client)}, nil
+func credentials(cfg *config.Config, client *http.Client, configKey string) ([]anthropic.Option, error) {
+	// A stored channel key shadows federation just like an env key does.
+	if key := pconfig.FirstNonEmpty(configKey, cfg.AnthropicAPIKey); key != "" {
+		return []anthropic.Option{anthropic.WithToken(key), anthropic.WithHTTPClient(client)}, nil
 	}
 
 	id, identity, missing := federation(cfg)
@@ -170,7 +171,7 @@ func New(
 	providerName provider.ProviderName,
 	providerConfig *pconfig.ProviderConfig,
 ) (provider.Provider, error) {
-	baseURL := cfg.AnthropicServerURL
+	baseURL := pconfig.FirstNonEmpty(providerConfig.URL, cfg.AnthropicServerURL)
 	httpClient, err := system.GetHTTPClient(cfg)
 	if err != nil {
 		return nil, err
@@ -181,7 +182,7 @@ func New(
 		return nil, err
 	}
 
-	options, err := credentials(cfg, httpClient)
+	options, err := credentials(cfg, httpClient, providerConfig.Key)
 	if err != nil {
 		return nil, err
 	}

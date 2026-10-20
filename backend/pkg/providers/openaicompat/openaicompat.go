@@ -58,7 +58,7 @@ func New(
 	providerConfig *pconfig.ProviderConfig,
 ) (provider.Provider, error) {
 	if spec.APIKey == "" {
-		return nil, fmt.Errorf("missing API key for provider %q", spec.Type)
+		return nil, fmt.Errorf("missing API key for provider %q: set the key field in its config or its API key environment variable", spec.Type)
 	}
 
 	opts := []openai.Option{

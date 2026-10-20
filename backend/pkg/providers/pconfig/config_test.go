@@ -1304,6 +1304,7 @@ providers:
     key: k1
     model: m1
   - name: two
+    type: glm
     url: https://two.example.net/v1
     key: k2
     api_type: openai
@@ -1321,6 +1322,8 @@ providers:
 	assert.Equal(t, "m1", entries[0].Model)
 
 	assert.Equal(t, "two", entries[1].Name)
+	assert.Equal(t, "glm", entries[1].Type, "the type selects the provider door")
+	assert.Equal(t, "", entries[0].Type, "an unset type defaults to custom at seeding time")
 	assert.Equal(t, "openai", entries[1].APIType)
 
 	// every entry carries the shared default options for layering

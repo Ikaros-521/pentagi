@@ -200,8 +200,8 @@ func New(
 		return nil, err
 	}
 
-	baseModel := cfg.OllamaServerModel
-	serverURL := cfg.OllamaServerURL
+	baseModel := pconfig.FirstNonEmpty(providerConfig.Model, cfg.OllamaServerModel)
+	serverURL := pconfig.FirstNonEmpty(providerConfig.URL, cfg.OllamaServerURL)
 	timeout := time.Duration(cfg.OllamaServerPullModelsTimeout) * time.Second
 	if timeout <= 0 {
 		timeout = defaultPullTimeout
@@ -230,8 +230,8 @@ func New(
 	}
 
 	// Add API key for Ollama Cloud support
-	if cfg.OllamaServerAPIKey != "" {
-		options = append(options, ollama.WithAPIKey(cfg.OllamaServerAPIKey))
+	if apiKey := pconfig.FirstNonEmpty(providerConfig.Key, cfg.OllamaServerAPIKey); apiKey != "" {
+		options = append(options, ollama.WithAPIKey(apiKey))
 	}
 	if isCloudServer(serverURL) {
 		options = append(options, ollama.WithCloudStructuredOutputFallback())

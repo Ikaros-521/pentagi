@@ -1,0 +1,162 @@
+simple:
+  model: glm-4.5-flash
+  temperature: 0.3
+  top_p: 0.9
+  n: 1
+  max_tokens: 4096
+  price:
+    input: 0.15
+    output: 0.60
+
+simple_json:
+  model: glm-4.5-flash
+  temperature: 0.3
+  top_p: 0.9
+  n: 1
+  max_tokens: 4096
+  json: true
+  price:
+    input: 0.15
+    output: 0.60
+
+primary_agent:
+  model: glm-4.5-flash
+  n: 1
+  max_tokens: 16384
+  reasoning:
+    effort: medium
+  price:
+    input: 0.15
+    output: 0.60
+
+assistant:
+  model: glm-4.5-flash
+  n: 1
+  max_tokens: 16384
+  reasoning:
+    effort: medium
+  price:
+    input: 0.15
+    output: 0.60
+
+generator:
+  model: glm-4.5-flash
+  n: 1
+  max_tokens: 16384
+  reasoning:
+    effort: medium
+  price:
+    input: 0.15
+    output: 0.60
+
+refiner:
+  model: glm-4.5-flash
+  temperature: 0.5
+  top_p: 0.9
+  n: 1
+  max_tokens: 16384
+  price:
+    input: 0.15
+    output: 0.60
+
+adviser:
+  model: glm-4.5-flash
+  n: 1
+  max_tokens: 12288
+  reasoning:
+    effort: medium
+  price:
+    input: 0.15
+    output: 0.60
+
+reflector:
+  model: glm-4.5-flash
+  temperature: 0.5
+  top_p: 0.9
+  n: 1
+  max_tokens: 8192
+  price:
+    input: 0.15
+    output: 0.60
+
+searcher:
+  model: glm-4.5-flash
+  temperature: 0.5
+  top_p: 0.9
+  n: 1
+  max_tokens: 8192
+  price:
+    input: 0.15
+    output: 0.60
+
+enricher:
+  model: glm-4.5-flash
+  temperature: 0.5
+  top_p: 0.9
+  n: 1
+  max_tokens: 8192
+  price:
+    input: 0.15
+    output: 0.60
+
+coder:
+  model: glm-4.5-flash
+  n: 1
+  max_tokens: 16384
+  reasoning:
+    effort: high
+  price:
+    input: 0.15
+    output: 0.60
+
+installer:
+  model: glm-4.5-flash
+  n: 1
+  max_tokens: 12288
+  reasoning:
+    effort: medium
+  price:
+    input: 0.15
+    output: 0.60
+
+pentester:
+  model: glm-4.5-flash
+  n: 1
+  max_tokens: 16384
+  reasoning:
+    effort: high
+  price:
+    input: 0.15
+    output: 0.60
+
+# =====================================================================
+# 多渠道配置(本地功能扩展):在下面追加 providers 列表即可添加新渠道,
+# 无需改环境变量。保存后默认 60 秒内自动生效
+# (间隔由 LLM_SERVER_CONFIG_RELOAD 控制,重启 pentagi 容器也可)。
+# 每个渠道必填 name/url/key;type 选渠道门类,不填为 custom(OpenAI 兼容),
+# 也可用 glm / deepseek / kimi / qwen / minimax / mistral / xai / openai /
+# anthropic / gemini / ollama(此时可省略 url,走官方端点);
+# bedrock 不支持,仍走环境变量。model 为该渠道默认模型;
+# 各 agent 块可选,不填时回落到渠道 model。示例:
+#
+# providers:
+#   - name: my-newapi
+#     url: http://new-api:3000/v1
+#     key: sk-xxxx
+#     model: gpt-4o
+#   - name: glm-cloud
+#     type: glm
+#     key: sk-yyyy
+#     model: glm-4.6
+#     primary_agent:
+#       model: glm-4.6
+#       max_tokens: 16384
+#   - name: glm-openai-compat
+#     url: https://open.bigmodel.cn/api/paas/v4
+#     key: sk-zzzz
+#     model: glm-4.6
+#
+# 注意:渠道从文件移除后不会自动从系统删除,需在 Settings → Providers 手动删除。
+# Settings 页面任何类型(除 bedrock)都能新建 provider,但 UI 表单不含 key
+# 输入框 —— key 请通过本文件的 providers 列表或环境变量提供。
+# =====================================================================

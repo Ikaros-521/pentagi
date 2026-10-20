@@ -19,8 +19,7 @@ import (
 
 // CustomFileChannelsConfigured reports whether the custom provider config file
 // defines at least one named channel, so callers (UI availability flags) can
-// treat the custom type as usable even without LLM_SERVER_* environment
-// variables.
+// treat channels as usable even without the API key environment variables.
 func CustomFileChannelsConfigured(cfg *config.Config) bool {
 	entries, err := loadNamedCustomChannels(cfg)
 	return err == nil && len(entries) > 0
@@ -28,7 +27,7 @@ func CustomFileChannelsConfigured(cfg *config.Config) bool {
 
 // loadNamedCustomChannels reads and parses the "providers:" list from the
 // custom provider config file (LLM_SERVER_CONFIG_PATH).
-func loadNamedCustomChannels(cfg *config.Config) ([]*pconfig.ProviderConfig, error) {
+func loadNamedCustomChannels(cfg *config.Config) ([]*pconfig.NamedProviderConfig, error) {
 	if cfg == nil || cfg.LLMServerConfig == "" {
 		return nil, nil
 	}
@@ -50,8 +49,10 @@ func loadNamedCustomChannels(cfg *config.Config) ([]*pconfig.ProviderConfig, err
 // config file into the database for all users. Environment variables remain the
 // bootstrap for the default channel; named channels live in configuration and
 // are (re-)applied on every startup and config-file change, so adding a channel
-// is a file edit — no env vars, no redeploy. Channels removed from the file are
-// deliberately kept in the database; delete them in the UI.
+// is a file edit — no env vars, no redeploy. The entry's optional type selects
+// the provider door (custom, glm, deepseek, ...); credentials ride in the
+// stored config. Channels removed from the file are deliberately kept in the
+// database; delete them in the UI.
 func (pc *providerController) seedCustomFileProviders(ctx context.Context) error {
 	entries, err := loadNamedCustomChannels(pc.cfg)
 	if err != nil {
@@ -68,7 +69,19 @@ func (pc *providerController) seedCustomFileProviders(ctx context.Context) error
 
 	for _, u := range users {
 		for _, entry := range entries {
-			rawConfig, err := json.Marshal(entry)
+			typeName := pconfig.FirstNonEmpty(entry.Type, string(provider.ProviderCustom))
+			prvtype := provider.ProviderType(typeName)
+			// Bedrock's AWS credential chain does not map onto the file's
+			// url/key shape, so it stays environment-configured only.
+			if _, known := entryForType(prvtype); !known || prvtype == provider.ProviderBedrock {
+				logrus.WithFields(logrus.Fields{
+					"provider": entry.Name,
+					"type":     typeName,
+				}).Warn("config file names a channel type that cannot carry file credentials, entry skipped")
+				continue
+			}
+
+			rawConfig, err := json.Marshal(&entry.ProviderConfig)
 			if err != nil {
 				return fmt.Errorf("failed to marshal named provider %q: %w", entry.Name, err)
 			}
@@ -84,7 +97,7 @@ func (pc *providerController) seedCustomFileProviders(ctx context.Context) error
 			if err == sql.ErrNoRows {
 				if _, err := pc.db.CreateProvider(ctx, database.CreateProviderParams{
 					UserID: u.ID,
-					Type:   database.ProviderType(provider.ProviderCustom),
+					Type:   database.ProviderType(prvtype),
 					Name:   entry.Name,
 					Config: rawConfig,
 				}); err != nil {
@@ -92,12 +105,13 @@ func (pc *providerController) seedCustomFileProviders(ctx context.Context) error
 				}
 				logrus.WithFields(logrus.Fields{
 					"provider": entry.Name,
+					"type":     typeName,
 					"user_id":  u.ID,
-				}).Info("custom channel from config file was registered")
+				}).Info("channel from config file was registered")
 				continue
 			}
 
-			if existing.Type != database.ProviderType(provider.ProviderCustom) {
+			if existing.Type != database.ProviderType(prvtype) {
 				logrus.WithFields(logrus.Fields{
 					"provider": entry.Name,
 					"user_id":  u.ID,
@@ -116,8 +130,9 @@ func (pc *providerController) seedCustomFileProviders(ctx context.Context) error
 			}
 			logrus.WithFields(logrus.Fields{
 				"provider": entry.Name,
+				"type":     typeName,
 				"user_id":  u.ID,
-			}).Info("custom channel from config file was updated")
+			}).Info("channel from config file was updated")
 		}
 	}
 
@@ -156,7 +171,7 @@ func (pc *providerController) watchCustomFileProviders(ctx context.Context) {
 		lastMod = fi.ModTime()
 
 		if err := pc.seedCustomFileProviders(ctx); err != nil {
-			logrus.WithError(err).Warn("failed to re-apply custom channels from config file")
+			logrus.WithError(err).Warn("failed to re-apply channels from config file")
 		}
 	}
 }

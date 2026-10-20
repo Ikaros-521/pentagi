@@ -14,6 +14,8 @@ import (
 	"pentagi/pkg/providers/pconfig"
 	"pentagi/pkg/providers/provider"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/vxcontrol/langchaingo/llms"
 	"github.com/vxcontrol/langchaingo/llms/reasoning"
 	"gopkg.in/yaml.v3"
@@ -304,4 +306,20 @@ func TestGlm_DefaultProviderConfig_RefusesReasoningOffOnAnAlwaysThinkingModelBef
 	if !errors.As(err, &offErr) || reached {
 		t.Fatalf("want a typed reasoning-off error for glm-5.3-flash before the wire, got %v (reached wire=%v)", err, reached)
 	}
+}
+func TestGLM_New_TakesTheChannelKeyFromTheStoredConfig(t *testing.T) {
+	t.Parallel()
+
+	// no GLM_API_KEY anywhere: only the stored config can carry the key
+	providerConfig, err := BuildProviderConfig([]byte(`{"key": "config-key"}`))
+	require.NoError(t, err)
+
+	prov, err := New(&config.Config{}, "glm-channel", providerConfig)
+	require.NoError(t, err, "a channel with its own key must build without environment credentials")
+	assert.Equal(t, provider.ProviderName("glm-channel"), prov.Name())
+
+	empty, err := BuildProviderConfig([]byte(`{}`))
+	require.NoError(t, err)
+	_, err = New(&config.Config{}, "keyless", empty)
+	assert.Error(t, err, "with no key in config or env the door must refuse to build")
 }

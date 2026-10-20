@@ -74,7 +74,7 @@ func New(
 ) (provider.Provider, error) {
 	opts := []googleai.Option{
 		googleai.WithRest(),
-		googleai.WithAPIKey(cfg.GeminiAPIKey),
+		googleai.WithAPIKey(pconfig.FirstNonEmpty(providerConfig.Key, cfg.GeminiAPIKey)),
 		googleai.WithDefaultModel(GeminiAgentModel),
 	}
 

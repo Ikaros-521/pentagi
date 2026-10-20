@@ -71,8 +71,8 @@ func New(
 		Type:               provider.ProviderXAI,
 		Model:              XAIAgentModel,
 		ToolCallIDTemplate: XAIToolCallIDTemplate,
-		APIKey:             cfg.XAIAPIKey,
-		ServerURL:          cfg.XAIServerURL,
+		APIKey:             pconfig.FirstNonEmpty(providerConfig.Key, cfg.XAIAPIKey),
+		ServerURL:          pconfig.FirstNonEmpty(providerConfig.URL, cfg.XAIServerURL),
 		Prefix:             cfg.XAIProvider,
 		PreserveReasoning:  true,
 	}, httpClient, models, providerName, providerConfig)
