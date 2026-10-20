@@ -1992,10 +1992,14 @@ function SettingsProvider() {
                 placeholder={isNew ? 'sk-...' : '•••••••• (unchanged)'}
             />
 
-            {watch('type') === ProviderType.Custom && (
+            {watch('type') !== ProviderType.Bedrock && (
                 <FormInputStringItem
                     control={control}
-                    description="OpenAI-compatible base URL, e.g. https://api.example.com/v1"
+                    description={
+                        watch('type') === ProviderType.Custom
+                            ? 'OpenAI-compatible base URL, e.g. https://api.example.com/v1'
+                            : 'Custom API base URL (proxies and gateways); leave empty for the official endpoint'
+                    }
                     disabled={isLoading}
                     label="Base URL"
                     name="url"

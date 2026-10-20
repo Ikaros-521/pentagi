@@ -248,7 +248,7 @@ func TestGemini_NewHTTPClient_AppliesTheConfiguredTimeout(t *testing.T) {
 	client, err := newHTTPClient(&config.Config{
 		HTTPClientTimeout: 1,
 		GeminiServerURL:   srv.URL,
-	})
+	}, srv.URL, "")
 	if err != nil {
 		t.Fatalf("build client: %v", err)
 	}
@@ -285,7 +285,7 @@ func TestGemini_NewHTTPClient_TrustsTheConfiguredCA(t *testing.T) {
 		HTTPClientTimeout: 5,
 		ExternalSSLCAPath: caPath,
 		GeminiServerURL:   srv.URL,
-	})
+	}, srv.URL, "")
 	if err != nil {
 		t.Fatalf("build client with CA: %v", err)
 	}
@@ -299,7 +299,7 @@ func TestGemini_NewHTTPClient_TrustsTheConfiguredCA(t *testing.T) {
 	plain, err := newHTTPClient(&config.Config{
 		HTTPClientTimeout: 5,
 		GeminiServerURL:   srv.URL,
-	})
+	}, srv.URL, "")
 	if err != nil {
 		t.Fatalf("build client without CA: %v", err)
 	}
@@ -331,7 +331,7 @@ func TestGemini_NewHTTPClient_InjectsTheKeyAndRewritesTheBase(t *testing.T) {
 		HTTPClientTimeout: 5,
 		GeminiAPIKey:      "gemini-key",
 		GeminiServerURL:   srv.URL,
-	})
+	}, srv.URL, "gemini-key")
 	if err != nil {
 		t.Fatalf("build client: %v", err)
 	}

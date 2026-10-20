@@ -72,17 +72,20 @@ func New(
 	providerName provider.ProviderName,
 	providerConfig *pconfig.ProviderConfig,
 ) (provider.Provider, error) {
+	baseURL := pconfig.FirstNonEmpty(providerConfig.URL, cfg.GeminiServerURL)
+	apiKey := pconfig.FirstNonEmpty(providerConfig.Key, cfg.GeminiAPIKey)
+
 	opts := []googleai.Option{
 		googleai.WithRest(),
-		googleai.WithAPIKey(pconfig.FirstNonEmpty(providerConfig.Key, cfg.GeminiAPIKey)),
+		googleai.WithAPIKey(apiKey),
 		googleai.WithDefaultModel(GeminiAgentModel),
 	}
 
-	if _, err := url.Parse(cfg.GeminiServerURL); err != nil {
+	if _, err := url.Parse(baseURL); err != nil {
 		return nil, fmt.Errorf("failed to parse Gemini server URL: %w", err)
 	}
 
-	httpClient, err := newHTTPClient(cfg)
+	httpClient, err := newHTTPClient(cfg, baseURL, apiKey)
 	if err != nil {
 		return nil, err
 	}
@@ -107,7 +110,7 @@ func New(
 	}, nil
 }
 
-func newHTTPClient(cfg *config.Config) (*http.Client, error) {
+func newHTTPClient(cfg *config.Config, baseURL, apiKey string) (*http.Client, error) {
 	httpClient, err := system.GetHTTPClient(cfg)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create HTTP client: %w", err)
@@ -115,8 +118,8 @@ func newHTTPClient(cfg *config.Config) (*http.Client, error) {
 
 	httpClient.Transport = &httputil.ApiKeyTransport{
 		Transport: httpClient.Transport,
-		APIKey:    cfg.GeminiAPIKey,
-		BaseURL:   cfg.GeminiServerURL,
+		APIKey:    apiKey,
+		BaseURL:   baseURL,
 	}
 
 	return httpClient, nil
