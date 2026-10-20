@@ -668,8 +668,14 @@ func LoadNamedProviders(
 			return nil, fmt.Errorf("named provider %q is defined more than once", entry.Name)
 		}
 		seen[entry.Name] = struct{}{}
-		if strings.TrimSpace(entry.URL) == "" {
-			return nil, fmt.Errorf("named provider %q is missing url", entry.Name)
+		// A custom channel has no endpoint of its own, so it must carry the
+		// url; every other door falls back to its vendor endpoint from the
+		// environment defaults when url is unset.
+		typeName := strings.ToLower(strings.TrimSpace(entry.Type))
+		if typeName == "" || typeName == "custom" {
+			if strings.TrimSpace(entry.URL) == "" {
+				return nil, fmt.Errorf("named provider %q is missing url", entry.Name)
+			}
 		}
 		if strings.TrimSpace(entry.Key) == "" {
 			return nil, fmt.Errorf("named provider %q is missing key", entry.Name)

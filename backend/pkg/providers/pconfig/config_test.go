@@ -1311,10 +1311,13 @@ providers:
     simple:
       model: m2-simple
       temperature: 0.4
+  - name: three
+    type: glm
+    key: k3
 `
 	entries, err := LoadNamedProviders([]byte(configData), []llms.CallOption{llms.WithTemperature(0.2)})
 	require.NoError(t, err)
-	require.Len(t, entries, 2)
+	require.Len(t, entries, 3)
 
 	assert.Equal(t, "one", entries[0].Name)
 	assert.Equal(t, "https://one.example.net/v1", entries[0].URL)
@@ -1330,6 +1333,10 @@ providers:
 	for _, entry := range entries {
 		require.Len(t, entry.GetDefaultOptions(), 1, "entry %s", entry.Name)
 	}
+
+	assert.Len(t, entries, 3)
+	assert.Empty(t, entries[2].URL,
+		"a non-custom door may omit url and fall back to its vendor endpoint")
 
 	// the channel-wide model lives in the Model field; the custom provider's
 	// client applies it to agents without their own block (see custom_test).
