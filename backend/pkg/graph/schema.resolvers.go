@@ -524,8 +524,24 @@ func (r *mutationResolver) TestProvider(ctx context.Context, typeArg model.Provi
 	return converter.ConvertProviderTestResults(result), nil
 }
 
+// applyCredentials copies the write-only channel credentials onto the stored
+// config. Empty or whitespace values mean "no change": UpdateProvider keeps
+// the previously stored values for empty fields, so clearing the key field in
+// the UI cannot wipe a working credential by accident.
+func applyCredentials(cfg *pconfig.ProviderConfig, credentials *model.ProviderCredentialsInput) {
+	if cfg == nil || credentials == nil {
+		return
+	}
+	if credentials.Key != nil && strings.TrimSpace(*credentials.Key) != "" {
+		cfg.Key = strings.TrimSpace(*credentials.Key)
+	}
+	if credentials.URL != nil && strings.TrimSpace(*credentials.URL) != "" {
+		cfg.URL = strings.TrimSpace(*credentials.URL)
+	}
+}
+
 // CreateProvider is the resolver for the createProvider field.
-func (r *mutationResolver) CreateProvider(ctx context.Context, name string, typeArg model.ProviderType, agents model.AgentsConfig) (*model.ProviderConfig, error) {
+func (r *mutationResolver) CreateProvider(ctx context.Context, name string, typeArg model.ProviderType, agents model.AgentsConfig, credentials *model.ProviderCredentialsInput) (*model.ProviderConfig, error) {
 	uid, _, err := validatePermission(ctx, "settings.providers.edit")
 	if err != nil {
 		return nil, err
@@ -538,6 +554,7 @@ func (r *mutationResolver) CreateProvider(ctx context.Context, name string, type
 	}).Debug("create provider")
 
 	cfg := converter.ConvertAgentsConfigFromGqlModel(&agents)
+	applyCredentials(cfg, credentials)
 	prvname, prvtype := provider.ProviderName(name), provider.ProviderType(typeArg)
 	prv, err := r.ProvidersCtrl.CreateProvider(ctx, uid, prvname, prvtype, cfg)
 	if err != nil {
@@ -550,7 +567,7 @@ func (r *mutationResolver) CreateProvider(ctx context.Context, name string, type
 }
 
 // UpdateProvider is the resolver for the updateProvider field.
-func (r *mutationResolver) UpdateProvider(ctx context.Context, providerID int64, name string, agents model.AgentsConfig) (*model.ProviderConfig, error) {
+func (r *mutationResolver) UpdateProvider(ctx context.Context, providerID int64, name string, agents model.AgentsConfig, credentials *model.ProviderCredentialsInput) (*model.ProviderConfig, error) {
 	uid, _, err := validatePermission(ctx, "settings.providers.edit")
 	if err != nil {
 		return nil, err
@@ -572,6 +589,7 @@ func (r *mutationResolver) UpdateProvider(ctx context.Context, providerID int64,
 	oldName := provider.ProviderName(existing.Name)
 
 	cfg := converter.ConvertAgentsConfigFromGqlModel(&agents)
+	applyCredentials(cfg, credentials)
 	prvname := provider.ProviderName(name)
 	prv, err := r.ProvidersCtrl.UpdateProvider(ctx, uid, providerID, prvname, cfg)
 	if err != nil {

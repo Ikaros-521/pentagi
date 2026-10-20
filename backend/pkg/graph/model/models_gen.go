@@ -385,6 +385,11 @@ type ProviderConfig struct {
 	UpdatedAt time.Time     `json:"updatedAt"`
 }
 
+type ProviderCredentialsInput struct {
+	URL *string `json:"url,omitempty"`
+	Key *string `json:"key,omitempty"`
+}
+
 type ProviderTestResult struct {
 	Simple       *AgentTestResult `json:"simple"`
 	SimpleJSON   *AgentTestResult `json:"simpleJson"`

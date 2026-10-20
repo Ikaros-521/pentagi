@@ -175,7 +175,7 @@ func TestSchemaResolvers_UpdateProvider_CascadesTheStoredName(t *testing.T) {
 			r.ProvidersCtrl = graphProvidersCtrl{}
 			r.Controller = flows
 
-			_, err := r.Mutation().UpdateProvider(graphUserContext(1, "settings.providers.edit"), 7, tt.argument, model.AgentsConfig{})
+			_, err := r.Mutation().UpdateProvider(graphUserContext(1, "settings.providers.edit"), 7, tt.argument, model.AgentsConfig{}, nil)
 
 			require.NoError(t, err)
 			assert.Equal(t, tt.wantCascade, flows.providerRenames, "flows repointed to a name no provider row holds")

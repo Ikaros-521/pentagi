@@ -901,6 +901,13 @@ input AgentConfigInput {
   extraBody: Map
 }
 
+# Optional per-channel credentials for user-defined providers. The key is
+# write-only: it is stored with the provider config and never returned.
+input ProviderCredentialsInput {
+  url: String
+  key: String
+}
+
 # Input type for AgentsConfig
 input AgentsConfigInput {
   simple: AgentConfigInput!
@@ -1090,8 +1097,8 @@ type Mutation {
   # Testing and validation
   testAgent(type: ProviderType!, agentType: AgentConfigType!, agent: AgentConfigInput!, simple: AgentConfigInput): AgentTestResult!
   testProvider(type: ProviderType!, agents: AgentsConfigInput!): ProviderTestResult!
-  createProvider(name: String!, type: ProviderType!, agents: AgentsConfigInput!): ProviderConfig!
-  updateProvider(providerId: ID!, name: String!, agents: AgentsConfigInput!): ProviderConfig!
+  createProvider(name: String!, type: ProviderType!, agents: AgentsConfigInput!, credentials: ProviderCredentialsInput): ProviderConfig!
+  updateProvider(providerId: ID!, name: String!, agents: AgentsConfigInput!, credentials: ProviderCredentialsInput): ProviderConfig!
   deleteProvider(providerId: ID!): ResultType!
 
   # Prompt management

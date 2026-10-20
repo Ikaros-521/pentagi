@@ -203,6 +203,11 @@ export enum PromptValidationErrorType {
     VariableTypeMismatch = 'variable_type_mismatch',
 }
 
+export type ProviderCredentialsInput = {
+    key?: string | null | undefined;
+    url?: string | null | undefined;
+};
+
 export enum ProviderType {
     Anthropic = 'anthropic',
     Bedrock = 'bedrock',
@@ -1179,6 +1184,7 @@ export type CreateProviderMutationVariables = Exact<{
     name: string;
     type: ProviderType;
     agents: AgentsConfigInput;
+    credentials?: ProviderCredentialsInput | null | undefined;
 }>;
 
 export type CreateProviderMutation = { createProvider: ProviderConfigFragmentFragment };
@@ -1187,6 +1193,7 @@ export type UpdateProviderMutationVariables = Exact<{
     providerId: string | number;
     name: string;
     agents: AgentsConfigInput;
+    credentials?: ProviderCredentialsInput | null | undefined;
 }>;
 
 export type UpdateProviderMutation = { updateProvider: ProviderConfigFragmentFragment };
@@ -8978,6 +8985,11 @@ export const CreateProviderDocument = {
                         type: { kind: 'NamedType', name: { kind: 'Name', value: 'AgentsConfigInput' } },
                     },
                 },
+                {
+                    kind: 'VariableDefinition',
+                    variable: { kind: 'Variable', name: { kind: 'Name', value: 'credentials' } },
+                    type: { kind: 'NamedType', name: { kind: 'Name', value: 'ProviderCredentialsInput' } },
+                },
             ],
             selectionSet: {
                 kind: 'SelectionSet',
@@ -9000,6 +9012,11 @@ export const CreateProviderDocument = {
                                 kind: 'Argument',
                                 name: { kind: 'Name', value: 'agents' },
                                 value: { kind: 'Variable', name: { kind: 'Name', value: 'agents' } },
+                            },
+                            {
+                                kind: 'Argument',
+                                name: { kind: 'Name', value: 'credentials' },
+                                value: { kind: 'Variable', name: { kind: 'Name', value: 'credentials' } },
                             },
                         ],
                         selectionSet: {
@@ -9255,6 +9272,11 @@ export const UpdateProviderDocument = {
                         type: { kind: 'NamedType', name: { kind: 'Name', value: 'AgentsConfigInput' } },
                     },
                 },
+                {
+                    kind: 'VariableDefinition',
+                    variable: { kind: 'Variable', name: { kind: 'Name', value: 'credentials' } },
+                    type: { kind: 'NamedType', name: { kind: 'Name', value: 'ProviderCredentialsInput' } },
+                },
             ],
             selectionSet: {
                 kind: 'SelectionSet',
@@ -9277,6 +9299,11 @@ export const UpdateProviderDocument = {
                                 kind: 'Argument',
                                 name: { kind: 'Name', value: 'agents' },
                                 value: { kind: 'Variable', name: { kind: 'Name', value: 'agents' } },
+                            },
+                            {
+                                kind: 'Argument',
+                                name: { kind: 'Name', value: 'credentials' },
+                                value: { kind: 'Variable', name: { kind: 'Name', value: 'credentials' } },
                             },
                         ],
                         selectionSet: {

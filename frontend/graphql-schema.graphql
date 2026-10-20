@@ -1164,14 +1164,14 @@ mutation testProvider($type: ProviderType!, $agents: AgentsConfigInput!) {
     }
 }
 
-mutation createProvider($name: String!, $type: ProviderType!, $agents: AgentsConfigInput!) {
-    createProvider(name: $name, type: $type, agents: $agents) {
+mutation createProvider($name: String!, $type: ProviderType!, $agents: AgentsConfigInput!, $credentials: ProviderCredentialsInput) {
+    createProvider(name: $name, type: $type, agents: $agents, credentials: $credentials) {
         ...providerConfigFragment
     }
 }
 
-mutation updateProvider($providerId: ID!, $name: String!, $agents: AgentsConfigInput!) {
-    updateProvider(providerId: $providerId, name: $name, agents: $agents) {
+mutation updateProvider($providerId: ID!, $name: String!, $agents: AgentsConfigInput!, $credentials: ProviderCredentialsInput) {
+    updateProvider(providerId: $providerId, name: $name, agents: $agents, credentials: $credentials) {
         ...providerConfigFragment
     }
 }

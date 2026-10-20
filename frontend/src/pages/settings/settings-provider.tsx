@@ -354,10 +354,11 @@ function FormInputStringItem<T extends FieldValues = FieldValues>({
     control,
     description,
     disabled,
+    inputType,
     label,
     name,
     placeholder,
-}: FormInputStringItemProps<T>) {
+}: FormInputStringItemProps<T> & { inputType?: 'password' | 'text' }) {
     const { field, fieldState } = useController({
         control,
         defaultValue: undefined,
@@ -374,6 +375,7 @@ function FormInputStringItem<T extends FieldValues = FieldValues>({
                 <Input
                     {...field}
                     {...inputProps}
+                    type={inputType}
                     value={field.value ?? ''}
                 />
             </FormControl>
@@ -672,6 +674,10 @@ export const agentConfigSchema = z
 
 const formSchema = z.object({
     agents: z.record(z.string(), agentConfigSchema).optional(),
+    // Write-only channel credentials: the key is never returned by the API,
+    // so an empty field on edit means "keep the stored one".
+    key: z.string().optional(),
+    url: z.string().optional(),
     name: requiredString('Provider name is required').pipe(
         z
             .string()
@@ -1101,6 +1107,7 @@ export const transformFormToGraphQL = (
     models: ModelOption[] = [],
 ): {
     agents: AgentsConfigInput;
+    credentials?: { key: null | string; url: null | string };
     name: string;
     type: ProviderType;
 } => {
@@ -1164,8 +1171,12 @@ export const transformFormToGraphQL = (
             return { ...configs, [key]: config };
         }, {} as AgentsConfigInput);
 
+    const key = formData.key?.trim();
+    const url = formData.url?.trim();
+
     return {
         agents,
+        credentials: key || url ? { key: key || null, url: url || null } : undefined,
         name: formData.name ?? '',
         type: z.nativeEnum(ProviderType).parse(formData.type),
     };
@@ -1667,8 +1678,10 @@ function SettingsProvider() {
             if (!selectedType) {
                 reset({
                     agents: {},
+                    key: undefined,
                     name: undefined,
                     type: queryType,
+                    url: undefined,
                 });
             }
 
@@ -1687,8 +1700,11 @@ function SettingsProvider() {
 
         reset({
             agents: agents ? (normalizeGraphQLData(agents) as FormAgents) : {},
+            // The key never comes back from the API; empty means "keep stored".
+            key: undefined,
             name: name || undefined,
             type: type || undefined,
+            url: undefined,
         });
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [data, formQueryParams, isNew, providerId, selectedType]);
@@ -1961,6 +1977,31 @@ function SettingsProvider() {
                 name="name"
                 placeholder="Enter provider name"
             />
+
+            <FormInputStringItem
+                control={control}
+                description={
+                    isNew
+                        ? 'API key for this channel, stored with the provider config'
+                        : 'Leave empty to keep the stored API key'
+                }
+                disabled={isLoading}
+                inputType="password"
+                label="API Key"
+                name="key"
+                placeholder={isNew ? 'sk-...' : '•••••••• (unchanged)'}
+            />
+
+            {watch('type') === ProviderType.Custom && (
+                <FormInputStringItem
+                    control={control}
+                    description="OpenAI-compatible base URL, e.g. https://api.example.com/v1"
+                    disabled={isLoading}
+                    label="Base URL"
+                    name="url"
+                    placeholder="https://..."
+                />
+            )}
         </div>
     );
 

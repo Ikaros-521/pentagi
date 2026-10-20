@@ -377,7 +377,7 @@ type ComplexityRoot struct {
 		CreateFlowTemplate      func(childComplexity int, input model.CreateFlowTemplateInput) int
 		CreateKnowledgeDocument func(childComplexity int, input model.CreateKnowledgeDocumentInput) int
 		CreatePrompt            func(childComplexity int, typeArg model.PromptType, template string) int
-		CreateProvider          func(childComplexity int, name string, typeArg model.ProviderType, agents model.AgentsConfig) int
+		CreateProvider          func(childComplexity int, name string, typeArg model.ProviderType, agents model.AgentsConfig, credentials *model.ProviderCredentialsInput) int
 		DeleteAPIToken          func(childComplexity int, tokenID string) int
 		DeleteAssistant         func(childComplexity int, flowID int64, assistantID int64) int
 		DeleteFavoriteFlow      func(childComplexity int, flowID int64) int
@@ -398,7 +398,7 @@ type ComplexityRoot struct {
 		UpdateFlowTemplate      func(childComplexity int, templateID int64, input model.UpdateFlowTemplateInput) int
 		UpdateKnowledgeDocument func(childComplexity int, id string, input model.UpdateKnowledgeDocumentInput) int
 		UpdatePrompt            func(childComplexity int, promptID int64, template string) int
-		UpdateProvider          func(childComplexity int, providerID int64, name string, agents model.AgentsConfig) int
+		UpdateProvider          func(childComplexity int, providerID int64, name string, agents model.AgentsConfig, credentials *model.ProviderCredentialsInput) int
 		ValidatePrompt          func(childComplexity int, typeArg model.PromptType, template string) int
 	}
 
@@ -789,8 +789,8 @@ type MutationResolver interface {
 	DeleteAssistant(ctx context.Context, flowID int64, assistantID int64) (model.ResultType, error)
 	TestAgent(ctx context.Context, typeArg model.ProviderType, agentType model.AgentConfigType, agent model.AgentConfig, simple *model.AgentConfig) (*model.AgentTestResult, error)
 	TestProvider(ctx context.Context, typeArg model.ProviderType, agents model.AgentsConfig) (*model.ProviderTestResult, error)
-	CreateProvider(ctx context.Context, name string, typeArg model.ProviderType, agents model.AgentsConfig) (*model.ProviderConfig, error)
-	UpdateProvider(ctx context.Context, providerID int64, name string, agents model.AgentsConfig) (*model.ProviderConfig, error)
+	CreateProvider(ctx context.Context, name string, typeArg model.ProviderType, agents model.AgentsConfig, credentials *model.ProviderCredentialsInput) (*model.ProviderConfig, error)
+	UpdateProvider(ctx context.Context, providerID int64, name string, agents model.AgentsConfig, credentials *model.ProviderCredentialsInput) (*model.ProviderConfig, error)
 	DeleteProvider(ctx context.Context, providerID int64) (model.ResultType, error)
 	ValidatePrompt(ctx context.Context, typeArg model.PromptType, template string) (*model.PromptValidationResult, error)
 	CreatePrompt(ctx context.Context, typeArg model.PromptType, template string) (*model.UserPrompt, error)
@@ -2539,7 +2539,7 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 			return 0, false
 		}
 
-		return e.complexity.Mutation.CreateProvider(childComplexity, args["name"].(string), args["type"].(model.ProviderType), args["agents"].(model.AgentsConfig)), true
+		return e.complexity.Mutation.CreateProvider(childComplexity, args["name"].(string), args["type"].(model.ProviderType), args["agents"].(model.AgentsConfig), args["credentials"].(*model.ProviderCredentialsInput)), true
 
 	case "Mutation.deleteAPIToken":
 		if e.complexity.Mutation.DeleteAPIToken == nil {
@@ -2791,7 +2791,7 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 			return 0, false
 		}
 
-		return e.complexity.Mutation.UpdateProvider(childComplexity, args["providerId"].(int64), args["name"].(string), args["agents"].(model.AgentsConfig)), true
+		return e.complexity.Mutation.UpdateProvider(childComplexity, args["providerId"].(int64), args["name"].(string), args["agents"].(model.AgentsConfig), args["credentials"].(*model.ProviderCredentialsInput)), true
 
 	case "Mutation.validatePrompt":
 		if e.complexity.Mutation.ValidatePrompt == nil {
@@ -5015,6 +5015,7 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputCreateKnowledgeDocumentInput,
 		ec.unmarshalInputKnowledgeFilter,
 		ec.unmarshalInputModelPriceInput,
+		ec.unmarshalInputProviderCredentialsInput,
 		ec.unmarshalInputReasoningConfigInput,
 		ec.unmarshalInputUpdateAPITokenInput,
 		ec.unmarshalInputUpdateFlowTemplateInput,
@@ -5755,6 +5756,11 @@ func (ec *executionContext) field_Mutation_createProvider_args(ctx context.Conte
 		return nil, err
 	}
 	args["agents"] = arg2
+	arg3, err := ec.field_Mutation_createProvider_argsCredentials(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["credentials"] = arg3
 	return args, nil
 }
 func (ec *executionContext) field_Mutation_createProvider_argsName(
@@ -5820,6 +5826,28 @@ func (ec *executionContext) field_Mutation_createProvider_argsAgents(
 	}
 
 	var zeroVal model.AgentsConfig
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Mutation_createProvider_argsCredentials(
+	ctx context.Context,
+	rawArgs map[string]interface{},
+) (*model.ProviderCredentialsInput, error) {
+	// We won't call the directive if the argument is null.
+	// Set call_argument_directives_with_null to true to call directives
+	// even if the argument is null.
+	_, ok := rawArgs["credentials"]
+	if !ok {
+		var zeroVal *model.ProviderCredentialsInput
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("credentials"))
+	if tmp, ok := rawArgs["credentials"]; ok {
+		return ec.unmarshalOProviderCredentialsInput2ᚖpentagiᚋpkgᚋgraphᚋmodelᚐProviderCredentialsInput(ctx, tmp)
+	}
+
+	var zeroVal *model.ProviderCredentialsInput
 	return zeroVal, nil
 }
 
@@ -6886,6 +6914,11 @@ func (ec *executionContext) field_Mutation_updateProvider_args(ctx context.Conte
 		return nil, err
 	}
 	args["agents"] = arg2
+	arg3, err := ec.field_Mutation_updateProvider_argsCredentials(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["credentials"] = arg3
 	return args, nil
 }
 func (ec *executionContext) field_Mutation_updateProvider_argsProviderID(
@@ -6951,6 +6984,28 @@ func (ec *executionContext) field_Mutation_updateProvider_argsAgents(
 	}
 
 	var zeroVal model.AgentsConfig
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Mutation_updateProvider_argsCredentials(
+	ctx context.Context,
+	rawArgs map[string]interface{},
+) (*model.ProviderCredentialsInput, error) {
+	// We won't call the directive if the argument is null.
+	// Set call_argument_directives_with_null to true to call directives
+	// even if the argument is null.
+	_, ok := rawArgs["credentials"]
+	if !ok {
+		var zeroVal *model.ProviderCredentialsInput
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("credentials"))
+	if tmp, ok := rawArgs["credentials"]; ok {
+		return ec.unmarshalOProviderCredentialsInput2ᚖpentagiᚋpkgᚋgraphᚋmodelᚐProviderCredentialsInput(ctx, tmp)
+	}
+
+	var zeroVal *model.ProviderCredentialsInput
 	return zeroVal, nil
 }
 
@@ -19955,7 +20010,7 @@ func (ec *executionContext) _Mutation_createProvider(ctx context.Context, field 
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Mutation().CreateProvider(rctx, fc.Args["name"].(string), fc.Args["type"].(model.ProviderType), fc.Args["agents"].(model.AgentsConfig))
+		return ec.resolvers.Mutation().CreateProvider(rctx, fc.Args["name"].(string), fc.Args["type"].(model.ProviderType), fc.Args["agents"].(model.AgentsConfig), fc.Args["credentials"].(*model.ProviderCredentialsInput))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -20024,7 +20079,7 @@ func (ec *executionContext) _Mutation_updateProvider(ctx context.Context, field 
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Mutation().UpdateProvider(rctx, fc.Args["providerId"].(int64), fc.Args["name"].(string), fc.Args["agents"].(model.AgentsConfig))
+		return ec.resolvers.Mutation().UpdateProvider(rctx, fc.Args["providerId"].(int64), fc.Args["name"].(string), fc.Args["agents"].(model.AgentsConfig), fc.Args["credentials"].(*model.ProviderCredentialsInput))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -38823,6 +38878,40 @@ func (ec *executionContext) unmarshalInputModelPriceInput(ctx context.Context, o
 	return it, nil
 }
 
+func (ec *executionContext) unmarshalInputProviderCredentialsInput(ctx context.Context, obj interface{}) (model.ProviderCredentialsInput, error) {
+	var it model.ProviderCredentialsInput
+	asMap := map[string]interface{}{}
+	for k, v := range obj.(map[string]interface{}) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"url", "key"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "url":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("url"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.URL = data
+		case "key":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("key"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Key = data
+		}
+	}
+
+	return it, nil
+}
+
 func (ec *executionContext) unmarshalInputReasoningConfigInput(ctx context.Context, obj interface{}) (model.ReasoningConfig, error) {
 	var it model.ReasoningConfig
 	asMap := map[string]interface{}{}
@@ -47711,6 +47800,14 @@ func (ec *executionContext) marshalOProviderConfig2ᚖpentagiᚋpkgᚋgraphᚋmo
 		return graphql.Null
 	}
 	return ec._ProviderConfig(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalOProviderCredentialsInput2ᚖpentagiᚋpkgᚋgraphᚋmodelᚐProviderCredentialsInput(ctx context.Context, v interface{}) (*model.ProviderCredentialsInput, error) {
+	if v == nil {
+		return nil, nil
+	}
+	res, err := ec.unmarshalInputProviderCredentialsInput(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
 }
 
 func (ec *executionContext) marshalOReasoningConfig2ᚖpentagiᚋpkgᚋgraphᚋmodelᚐReasoningConfig(ctx context.Context, sel ast.SelectionSet, v *model.ReasoningConfig) graphql.Marshaler {
